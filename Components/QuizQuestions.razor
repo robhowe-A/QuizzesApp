@@ -1,0 +1,213 @@
+﻿@namespace QuizzesApp.Components
+@using QuizzesApp.Models;
+@inject NavigationManager NavManager
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage ProtectedSessionStore
+
+@if (_questionsCount >= 1 & _questionShowing <= _questionsCount)
+{
+    <div>
+        @{
+            string formName = $@"{Quiz.Title.ToLower()}-question-{_questionShowing}";
+            string rgQName = $"{Quiz.Title.ToLower()}-q{_questionShowing}-option";
+            string qOptionNameLong = $@"Question {_questionShowing}";
+        }
+        @* Questions Form *@
+        <form @formname="@formName" name="@formName">
+            <fieldset>
+                <legend>@qOptionNameLong of @Quiz.Questions.Count</legend>
+                <p>@Quiz.Questions[(int)_questionShowing - 1].QuestionStr</p>
+                <InputRadioGroup Name="@rgQName" @bind-Value="answerSelection">
+                    @{
+                        foreach (string option in Quiz.Questions[(int)_questionShowing - 1].Options)
+                        {
+                            <label>
+                                <InputRadio Value="@option" />
+                                @option
+                            </label><br />
+                        }
+                    }
+                    </InputRadioGroup>
+            </fieldset>
+        </form>
+        @* Check btn *@
+        <button id="check-answer" type="button" class="btn btn-secondary" @onclick="CheckAnswer">Check Answer</button>
+        <p>
+        @if (_checkingAnswer)
+        {
+            if (!_wrongCheckedAnswer)
+            {
+                <span>That is the correct answer!<br /></span>
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(answerSelection))
+                {
+                    <span>No answer selected. Choose from the options!</span>
+                }
+                else
+                {
+                    <span>No, that answer is incorrect.</span>
+                }
+            }
+        }
+        </p>
+
+        <div id="submit-btn">
+        @* Submit *@
+        @if (!string.IsNullOrEmpty(answerSelection) & !_questionNeedsGraded)
+        {
+            if (_questionShowing < _questionsCount)
+            {
+        <button class="btn btn-primary" @onclick="NextQuestion">Submit</button>
+            }
+            else if (_questionShowing == _questionsCount & !_quizCompleted)
+            {
+        <button class="btn btn-primary" @onclick="SubmitQuestions">Complete</button>
+            }
+        }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public QuizzesApp.Models.Quiz Quiz { get; set; }
+
+    private uint _questionShowing = 1;
+    private uint _questionsCount;
+
+    private string? answerSelection { get; set; }
+    private bool _questionCompleted = false;
+    private bool _questionNeedsGraded = false;
+
+    private bool _checkingAnswer = false;
+    private bool _wrongCheckedAnswer = true;
+    private uint _gradingQuestionNum = 0;
+    private bool _quizCompleted = false;
+
+    private System.Collections.Queue _gradedQuestions = new System.Collections.Queue(10);
+    private System.Collections.Queue _answeredQuestions = new System.Collections.Queue(10);
+    private System.Collections.Queue _answerSelections = new System.Collections.Queue(10);
+
+    private void NextQuestion()
+    {
+        //Set the form up for the next question
+        _questionShowing++;
+        _checkingAnswer = false;
+        _wrongCheckedAnswer = true;
+        _questionCompleted = true;
+        _questionNeedsGraded = true;
+        _gradingQuestionNum++;
+
+    }
+
+    private void CheckAnswer()
+    {
+        //Grade a question for correct answer
+        if(_checkingAnswer){ _checkingAnswer = false; return; }
+        CheckCorrectAnswer((int)_questionShowing - 1);
+        _checkingAnswer = true;
+    }
+
+    private bool CheckCorrectAnswer(int qIndex)
+    {
+        //Check the selected answer matches a quiz answer string
+        if (answerSelection == Quiz.Questions[qIndex].AnswerStr)
+        {
+            _wrongCheckedAnswer = false;
+            return true;
+        }
+        else
+        {
+            _wrongCheckedAnswer = true;
+            return false;
+        }
+    }
+
+    private void SubmitQuestions()
+    {
+        //Set the form as completed
+        _questionCompleted = true;
+        _gradingQuestionNum++;
+        _quizCompleted = true;
+    }
+
+    private async void SaveDataToBrowserStorage()
+    {
+        //Save data to protected session storage in the browser
+        await ProtectedSessionStore.SetAsync("GradedQuestions", _gradedQuestions);
+        await ProtectedSessionStore.SetAsync("AnsweredQuestions", _answeredQuestions);
+        await ProtectedSessionStore.SetAsync("AnswerSelections", _answerSelections);
+
+        //Click callback invocation
+        await OnClickCallback.InvokeAsync();
+    }
+
+    protected override void OnInitialized()
+    {
+        
+        _questionsCount = (uint)Quiz.Questions.Count;
+
+        _questionCompleted = false;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+
+        if (!firstRender)
+        {
+            if (_questionCompleted)
+            {
+                //User has selected an answer and submitted or completed the quiz question
+
+                var completedQuestionNumI = (int)_gradingQuestionNum - 1;
+                var questionStr = Quiz.Questions[completedQuestionNumI].QuestionStr;
+                var selectedAnswer = answerSelection;
+                bool correctAnswerSelected;
+
+                // Console.WriteLine("TEST: Q#{0}, QS:{1}, AS:{2}", completedQuestionNumI, questionStr, selectedAnswer);
+
+                //Component render puts grading after question has changed
+                if(_gradingQuestionNum <= _questionsCount)
+                {
+                    //Grade the answer
+                    correctAnswerSelected = CheckCorrectAnswer(completedQuestionNumI);
+
+                    //Record the answer question, user selection, and grade for use later
+                    _answeredQuestions.Enqueue(Quiz.Questions[completedQuestionNumI].QuestionStr);
+                    _answerSelections.Enqueue(selectedAnswer);
+                    if (correctAnswerSelected)
+                    {
+                        _gradedQuestions.Enqueue(correctAnswerSelected);
+                    }
+                    else
+                    {
+                        _gradedQuestions.Enqueue(false);
+                    }
+                }
+                //Reset the form now after grading is complete
+                answerSelection = string.Empty;
+                _questionNeedsGraded = false;
+                _questionCompleted = false;
+
+                if (_quizCompleted)
+                {
+                    //Completed quiz, now store the results
+                    SaveDataToBrowserStorage();
+                }
+            }
+            else
+            {
+                //User could be checking for the correct answer
+                if (_checkingAnswer == true)
+                {
+                    _checkingAnswer = false; //closes the check answer when new answer selected
+                    return;
+                }
+            }
+        }
+    }
+
+    [Parameter] public EventCallback<MouseEventArgs> OnClickCallback { get; set; } //Callback func used to signal completed quiz
+}

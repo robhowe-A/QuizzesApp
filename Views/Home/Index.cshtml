@@ -1,0 +1,65 @@
+﻿@namespace QuizzesApp.Views.Home
+@model QuizzesApp.Models.QuizzesOverview;
+@using QuizzesApp.Models;
+@using QuizzesApp.Services;
+
+@{
+    CheckAuthentication();
+}
+
+<section id="QuizMain" class="pb-3">
+    @if(_authenticationType == "AuthenticationTypes.Federation")// User is logged in externally
+    {
+        <p class="text-light">Hello, @User.Claims.FirstOrDefault(x => x.Type == "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress")?.Value!</p>
+    }
+    <!-- Quiz menu start -->
+    <h1>Welcome to the <b>Frontend Quiz!</b></h1>
+    <p><i>Pick a subject to get started.</i></p>
+
+    <ul id="QuizMenu">
+        @foreach (QuizOverview quiz in Model.Quizzes)
+        {
+            <li>
+
+                @if (this._authenticationType == "Identity.Application")
+                {
+                    <a asp-area="" asp-controller="Quiz" asp-action="Questions" asp-route-quiz="@quiz.Title">
+                        <div class="Option">
+                            <img src="@quiz.IconPath" alt="@quiz.Title FEM icon."/>
+                        </div>@quiz.Title
+                    </a>
+                }
+                else
+                {
+                    <a asp-area="" asp-controller="External" asp-action="Questions" asp-route-quiz="@quiz.Title">
+                        <div class="Option">
+                            <img src="@quiz.IconPath" alt="@quiz.Title FEM icon."/>
+                        </div>@quiz.Title
+                    </a>
+                }
+            </li>
+        }
+    </ul>
+
+    <!-- Quiz menu end -->
+</section>
+
+
+@functions {
+    private bool _isAuthenticated = false;
+    private string _authenticationType = string.Empty;
+
+    private void CheckAuthentication()
+    {
+        //check authenticated
+        if (User.Identity != null)
+            _isAuthenticated = User.Identity.IsAuthenticated;
+        else
+            _isAuthenticated = false;
+
+        if(_isAuthenticated)
+            _authenticationType = User.Identity!.AuthenticationType!;
+        //User.Identity.AuthenticationType == AuthenticationTypes.Federation //I.E. "Google"
+        //User.Identity.AuthenticationType == Identity.Application //I.E. Dotnet ID
+    }
+}

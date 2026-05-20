@@ -1,0 +1,39 @@
+﻿@namespace QuizzesApp.Components
+@using QuizzesApp.Models
+@using QuizzesApp.Controllers;
+@inject NavigationManager NavManager
+@using Microsoft.AspNetCore.WebUtilities
+
+<QuizQuestions OnClickCallback="GoToResults" Quiz="quiz"></QuizQuestions>
+
+@code {
+    private QuizzesApp.Models.Quiz quiz { get; set; }
+    private string? quizName = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        
+        System.Uri uri = NavManager.ToAbsoluteUri(NavManager.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("quiz", out var _initialCount))
+        {
+            quizName = _initialCount;
+        }
+
+        quiz = QuizOperations.GetQuiz(quizName);
+    }
+
+    private void GoToResults(MouseEventArgs e)
+    {
+        checkNavPath();
+    }
+
+    private void checkNavPath()
+    {
+
+        if (NavManager.Uri.Contains("/External/"))
+            NavManager.NavigateTo("/External/Results");
+        else
+            NavManager.NavigateTo("/Quiz/Results");
+    }
+}

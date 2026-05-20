@@ -1,0 +1,10 @@
+﻿body {
+}
+
+h1 {
+    color: var(--clr-PureWhite) !important;
+}
+
+p {
+    color: var(--clr-LightBluish);
+}

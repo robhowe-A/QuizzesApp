@@ -1,0 +1,85 @@
+﻿@namespace QuizzesApp.Components
+@using QuizzesApp.Models
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage ProtectedSessionStore
+
+@if (isConnected)
+{
+    int number = 1;
+    int i = 0;
+    @foreach (string q in AnsweredQuestions)
+    {
+        <p>@number. @q<br /><strong>@AnswerSelections[i]</strong>
+        <p><em>@GradedQuestions[i]</em></p></p>
+        number++; i++;
+    }
+}
+else
+{
+    <p>Loading...</p>
+}
+
+@code {
+    private bool isConnected;
+
+    private System.Collections.Generic.List<string> AnsweredQuestions = new System.Collections.Generic.List<string>();
+    private System.Collections.Generic.List<string> AnswerSelections = new System.Collections.Generic.List<string>();
+    private System.Collections.Generic.List<string> GradedQuestions = new System.Collections.Generic.List<string>();
+    private bool HasFetchedDataFromBrowserSessionStore = false;
+
+    private async Task GetGradedDataFromStorage()
+    {
+        if (!HasFetchedDataFromBrowserSessionStore)
+        {
+            var answeredQuestions = await ProtectedSessionStore.GetAsync<System.Collections.Queue>("AnsweredQuestions");
+            var answerSelections = await ProtectedSessionStore.GetAsync<System.Collections.Queue>("AnswerSelections");
+            var gradedQuestions = await ProtectedSessionStore.GetAsync<System.Collections.Queue>("GradedQuestions");
+
+            if (answeredQuestions.Value == null)
+            { throw new ArgumentNullException(@"answeredQuestions", @"Null storage value: AnsweredQuestions"); }
+
+            if (answerSelections.Value == null)
+            { throw new ArgumentNullException(@"answeredQuestions", @"Null storage value: AnswerSelections"); }
+
+            if (gradedQuestions.Value == null)
+            { throw new ArgumentNullException(@"answeredQuestions", @"Null storage value: GradedQuestions"); }
+
+            foreach (var answeredQuestion in answeredQuestions.Value)
+            {
+                //add answered questions to array
+                AnsweredQuestions.Add(answeredQuestion.ToString() ?? string.Empty);
+            }
+
+            foreach (var answerSelection in answerSelections.Value)
+            {
+                //add answer selections to array
+                AnswerSelections.Add(answerSelection.ToString() ?? string.Empty);
+            }
+
+            foreach (var gradedQuestion in gradedQuestions.Value)
+            {
+                //graded answers are stored as their boolean value
+                //make this a string to reflect the question grade is correct or incorrect
+                bool graded;
+                Boolean.TryParse(gradedQuestion.ToString(), out graded);
+
+                string answerGrade = graded ? "Correct!" : "Incorrect.";
+
+                GradedQuestions.Add(answerGrade);
+            }
+
+            HasFetchedDataFromBrowserSessionStore = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+        if (firstRender)
+        {
+            isConnected = true;
+            await GetGradedDataFromStorage();
+            StateHasChanged();
+        }
+    }
+}

@@ -46,7 +46,7 @@ namespace QuizzesApp.Controllers
             QuizOverview qOverview = new QuizOverview(QuizChoice);
             return qOverview;
         }
-        
+
         public static string? GetQuizNameMatch(string quiz)
         {
             //get the quizzes names from the data
@@ -69,7 +69,7 @@ namespace QuizzesApp.Controllers
             return QuizOverview;
         }
     }
-    
+
     [Authorize]
     public class QuizController : Controller
     {

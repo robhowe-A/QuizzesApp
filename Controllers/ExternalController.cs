@@ -12,7 +12,7 @@ namespace QuizzesApp.Controllers
         {
             // Return if there is no user identity
             if (User.Identity == null) return View("~/Views/Home/Index");
-            
+
             // Only continue if user is authenticated
             if (!User.Identity.IsAuthenticated) return View("~/Views/Home/Index");
 
@@ -29,7 +29,7 @@ namespace QuizzesApp.Controllers
         {
             var cred = await auth.GetCredentialAsync();
             var cookies = Request.Cookies;
-            
+
             return cookies.Any(item => item.Key == "Identity.External") ? Index() :
                 // No authority cookie exists, so return
                 Redirect("/");

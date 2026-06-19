@@ -55,7 +55,7 @@ namespace QuizzesApp.Models
         protected virtual void Dispose(bool disposing)
         {
             if (disposedValue) return;
-            
+
             // Cleanup code for 'Dispose()' method
             if (disposing)
             {

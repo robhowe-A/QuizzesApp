@@ -66,13 +66,13 @@ namespace QuizzesApp.Controllers
             if (!User.Identity.IsAuthenticated) return View();
 
             // Send Google identities to external controller
-            if(User.Identity.AuthenticationType == "AuthenticationTypes.Federation")
+            if (User.Identity.AuthenticationType == "AuthenticationTypes.Federation")
                 return Redirect("/external/index");
-            
+
             // If not Identity.Application, continued traffic is not authenticated
-            if (!string.Equals(User.Identity.AuthenticationType,"Identity.Application"))
+            if (!string.Equals(User.Identity.AuthenticationType, "Identity.Application"))
                 return View();
-                
+
             // Dotnet ID continue
             // Get the data to populate the starting page
             var quizzesOverviews = QuizOperations.GetQuizzesOverviews();
